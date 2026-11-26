@@ -1,0 +1,87 @@
+CPUS - ProVerif verification results
+====================================
+Date            : 2026-11-26
+Tool            : Proverif 2.00
+Models          : cpus_main.pv, cpus_fs.pv, cpus_eph.pv
+Assumption      : ID_U is a high-entropy secret known only to the user and the server
+
+How to read the lines
+  not attacker(secret...) is true    -> session key stays secret (attacker_p1 = after the leak phase)
+  inj-event(A) ==> inj-event(B) is true -> injective agreement: every acceptance matches a distinct peer run
+  not event(...) is false            -> the accepting event is reachable (results are not vacuous)
+
+Scenarios
+  MAIN : protocol exactly as specified (4 messages)
+  FS   : server RQC secret key SK=(x,y) released to the attacker after the sessions
+  EPH  : optional extension, fresh ephemeral server KEM key per session;
+         SK and stored ID_U both released after the sessions
+
+----------------------------------------------------------------
+A. Run in the authors' verification environment (full output)
+----------------------------------------------------------------
+
+=== cpus_main.pv
+RESULT not attacker(secretU[]) is true.
+RESULT not attacker(secretS[]) is true.
+RESULT inj-event(ServerAccepts(idu_68,nu_69,ns_70,sk_71)) ==> inj-event(UserSends(idu_68,nu_69,ns_70,sk_71)) is true.
+RESULT inj-event(UserAccepts(idu_72,nu_73,ns_74,sk_75)) ==> inj-event(ServerAccepts(idu_72,nu_73,ns_74,sk_75)) is true.
+RESULT not event(ServerAccepts(idu_76,nu_77,ns_78,sk_79)) is false.
+RESULT not event(UserAccepts(idu_80,nu_81,ns_82,sk_83)) is false.
+
+=== cpus_fs.pv
+RESULT not attacker_p1(secretU[]) is true.
+RESULT not attacker_p1(secretS[]) is true.
+RESULT inj-event(ServerAccepts(idu_68,nu_69,ns_70,sk_71)) ==> inj-event(UserSends(idu_68,nu_69,ns_70,sk_71)) is true.
+RESULT inj-event(UserAccepts(idu_72,nu_73,ns_74,sk_75)) ==> inj-event(ServerAccepts(idu_72,nu_73,ns_74,sk_75)) is true.
+RESULT not event(ServerAccepts(idu_76,nu_77,ns_78,sk_79)) is false.
+RESULT not event(UserAccepts(idu_80,nu_81,ns_82,sk_83)) is false.
+
+=== cpus_eph.pv
+RESULT not attacker_p1(secretU[]) is true.
+RESULT not attacker_p1(secretS[]) is true.
+RESULT inj-event(ServerAccepts(idu_71,nu_72,ns_73,sk_74)) ==> inj-event(UserSends(idu_71,nu_72,ns_73,sk_74)) is true.
+RESULT inj-event(UserAccepts(idu_75,nu_76,ns_77,sk_78)) ==> inj-event(ServerAccepts(idu_75,nu_76,ns_77,sk_78)) is true.
+RESULT not event(ServerAccepts(idu_79,nu_80,ns_81,sk_82)) is false.
+RESULT not event(UserAccepts(idu_83,nu_84,ns_85,sk_86)) is false.
+
+----------------------------------------------------------------
+B. Independent run on the user's machine (as reported)
+----------------------------------------------------------------
+
+=== cpus_main.pv
+RESULT not attacker(secretU[]) is true.
+RESULT not attacker(secretS[]) is true.
+RESULT inj-event(ServerAccepts(idu_3,nu_2,ns_2,sk_2)) ==> inj-event(UserSends(idu_3,nu_2,ns_2,sk_2)) is true.
+RESULT inj-event(UserAccepts(idu_3,nu_2,ns_2,sk_2)) ==> inj-event(ServerAccepts(idu_3,nu_2,ns_2,sk_2)) is true.
+RESULT not event(ServerAccepts(idu_3,nu_2,ns_2,sk_2)) is false.
+RESULT not event(UserAccepts(idu_3,nu_2,ns_2,sk_2)) is false.
+=== cpus_fs.pv
+RESULT not attacker_p1(secretU[]) is true.
+RESULT not attacker_p1(secretS[]) is true.
+RESULT inj-event(ServerAccepts(idu_3,nu_2,ns_2,sk_2)) ==> inj-event(UserSends(idu_3,nu_2,ns_2,sk_2)) is true.
+RESULT inj-event(UserAccepts(idu_3,nu_2,ns_2,sk_2)) ==> inj-event(ServerAccepts(idu_3,nu_2,ns_2,sk_2)) is true.
+RESULT not event(ServerAccepts(idu_3,nu_2,ns_2,sk_2)) is false.
+RESULT not event(UserAccepts(idu_3,nu_2,ns_2,sk_2)) is false.
+=== cpus_eph.pv
+RESULT not attacker_p1(secretU[]) is true.
+RESULT not attacker_p1(secretS[]) is true.
+RESULT inj-event(ServerAccepts(idu_3,nu_2,ns_2,sk_2)) ==> inj-event(UserSends(idu_3,nu_2,ns_2,sk_2)) is true.
+RESULT inj-event(UserAccepts(idu_3,nu_2,ns_2,sk_2)) ==> inj-event(ServerAccepts(idu_3,nu_2,ns_2,sk_2)) is true.
+RESULT not event(ServerAccepts(idu_3,nu_2,ns_2,sk_2)) is false.
+RESULT not event(UserAccepts(idu_3,nu_2,ns_2,sk_2)) is false.
+
+----------------------------------------------------------------
+Summary (identical verdicts in A and B)
+----------------------------------------------------------------
+Query                                         MAIN   FS     EPH
+Q1  secrecy of session key (user side)        holds  holds  holds
+Q2  secrecy of session key (server side)      holds  holds  holds
+Q3  injective agreement, user -> server       holds  holds  holds
+Q4  injective agreement, server -> user       holds  holds  holds
+Q5  ServerAccepts reachable                   yes    yes    yes
+Q6  UserAccepts reachable                     yes    yes    yes
+Released after sessions                       -      SK     SK, ID_U
+
+Scope: symbolic (Dolev-Yao) model, ideal primitives, one registered user, unbounded
+sessions. Pseudonym rotation is not modelled (covered by the C implementation tests).
+Results hold under the assumption that ID_U is a high-entropy secret.

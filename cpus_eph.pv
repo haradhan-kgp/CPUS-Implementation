@@ -1,0 +1,106 @@
+(* ===================================================================
+   CPUS -- ProVerif model                                     [EPH]
+   OPTIONAL EXTENSION: the server adds a fresh ephemeral KEM key per session
+   and the user encapsulates to both keys. SK and stored ID_U leaked in
+   phase 1.
+   Assumption: ID_U is a high-entropy value known only to the user
+   and the server.
+   Model: one registered user, unboundedly many sessions, active
+   Dolev-Yao network attacker. Pseudonym rotation is not modelled
+   (it is covered by the C implementation tests).
+   Expected: secrecy HOLDS even after full server compromise.
+   =================================================================== *)
+free c: channel.
+
+type skey.  type pkey.  type msg.  type ct.
+
+(* RQC.KEM as an IND-CCA KEM. The FO re-encryption check is modelled by
+   dec() succeeding only on honestly formed ciphertexts. *)
+fun pk(skey): pkey.
+fun pkbits(pkey): bitstring [data].
+fun enc(msg, pkey): ct.
+reduc forall m: msg, k: skey; dec(enc(m, pk(k)), k) = m.
+
+(* H1 = pseudonym update, H2 = ALL tags (single symbol, so cross-context
+   confusion between A2 / Auth_U / Auth_S is not excluded), H3 = KEM key *)
+fun H1(bitstring, bitstring): bitstring.
+fun H2(bitstring, bitstring, bitstring, bitstring): bitstring.
+fun H3(msg, ct, msg, ct): bitstring.
+fun KDF(bitstring, bitstring, bitstring): bitstring.
+
+(* A1 = nonce_S xor ID_U *)
+fun xor(bitstring, bitstring): bitstring.
+fun unxor(bitstring, bitstring): bitstring.        (* total: never fails, like real XOR *)
+equation forall x: bitstring, y: bitstring; unxor(xor(x, y), y) = x.
+equation forall x: bitstring, y: bitstring; xor(unxor(x, y), y) = x.
+
+(* symmetric encryption, used only to test secrecy of session keys *)
+fun senc(bitstring, bitstring): bitstring.
+reduc forall m: bitstring, k: bitstring; sdec(senc(m, k), k) = m.
+
+free secretU: bitstring [private].
+free secretS: bitstring [private].
+
+event UserSends(bitstring, bitstring, bitstring, bitstring).
+event ServerAccepts(bitstring, bitstring, bitstring, bitstring).
+event UserAccepts(bitstring, bitstring, bitstring, bitstring).
+
+(* ---------------- security queries ---------------- *)
+query attacker(secretU).
+query attacker(secretS).
+query idu: bitstring, nu: bitstring, ns: bitstring, sk: bitstring;
+  inj-event(ServerAccepts(idu, nu, ns, sk)) ==> inj-event(UserSends(idu, nu, ns, sk)).
+query idu: bitstring, nu: bitstring, ns: bitstring, sk: bitstring;
+  inj-event(UserAccepts(idu, nu, ns, sk)) ==> inj-event(ServerAccepts(idu, nu, ns, sk)).
+(* sanity: the accepting events must be reachable (expected result: false) *)
+query idu: bitstring, nu: bitstring, ns: bitstring, sk: bitstring;
+  event(ServerAccepts(idu, nu, ns, sk)).
+query idu: bitstring, nu: bitstring, ns: bitstring, sk: bitstring;
+  event(UserAccepts(idu, nu, ns, sk)).
+
+(* Msg1: IDS ; Msg2: A1,A2 ; Msg3: c,nonce_U,Auth_U ; Msg4: Auth_S *)
+let User(pkS: pkey, idu: bitstring, ids: bitstring) =
+  out(c, ids);
+  in(c, (a1: bitstring, a2: bitstring, pkE: pkey));
+  let ns = unxor(a1, idu) in
+  if a2 = H2(pkbits(pkE), idu, ids, ns) then          (* tag binds the ephemeral key *)
+  new m1: msg; new m2: msg; new nu: bitstring;
+  let c1 = enc(m1, pkS) in                             (* long-term key *)
+  let c2 = enc(m2, pkE) in                             (* ephemeral key *)
+  let K = H3(m1, c1, m2, c2) in
+  let sk = KDF(K, nu, ns) in
+  let authU = H2(sk, idu, nu, ns) in
+  let idsC = H1(K, ids) in
+  event UserSends(idu, nu, ns, sk);
+  out(c, (c1, c2, nu, authU));
+  in(c, authS: bitstring);
+  if authS = H2(sk, idsC, nu, ns) then
+  event UserAccepts(idu, nu, ns, sk);
+  out(c, senc(secretU, sk)).
+
+let Server(skS: skey, pkS: pkey, idu: bitstring, ids0: bitstring) =
+  in(c, ids: bitstring);
+  if ids = ids0 then
+  new ns: bitstring;
+  new skE: skey;                                       (* fresh per session, erased after use *)
+  let pkE = pk(skE) in
+  out(c, (xor(ns, idu), H2(pkbits(pkE), idu, ids, ns), pkE));
+  in(c, (c1: ct, c2: ct, nu: bitstring, authU: bitstring));
+  let m1 = dec(c1, skS) in
+  let m2 = dec(c2, skE) in
+  let K = H3(m1, c1, m2, c2) in
+  let sk = KDF(K, nu, ns) in
+  if authU = H2(sk, idu, nu, ns) then
+  let idsNew = H1(K, ids) in
+  event ServerAccepts(idu, nu, ns, sk);
+  out(c, H2(sk, idsNew, nu, ns));
+  out(c, senc(secretS, sk)).
+
+process
+  new skS: skey;
+  let pkS = pk(skS) in
+  out(c, pkS);
+  new idu: bitstring;
+  new ids0: bitstring;
+  ( !User(pkS, idu, ids0) | !Server(skS, pkS, idu, ids0)
+    | (phase 1; out(c, (skS, idu))) )   (* full server compromise later *)
