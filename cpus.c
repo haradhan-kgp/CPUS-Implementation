@@ -5,17 +5,6 @@
  * Build:  gcc -O2 -march=native cpus.c -o cpus -lcrypto
  *         (-march=native enables PCLMULQDQ; without it a portable
  *          shift-and-add multiplier is used and everything is ~10x slower)
- * Run:    ./cpus            protocol + RQC + wrong-key tests
- *         ./cpus bench [N]  timing (N protocol runs, default 20)
- *
- * RQC-I parameters: q=2, m=127, n=113, k=3, w=7, w1=7, w2=6, delta=55,
- *                   P = X^113 + X^9 + 1 (irreducible over F_2),
- *                   F_{2^127} = F_2[x]/(x^127 + x + 1).
- * Gabidulin code: g_j = x^j (j<113), c_j = sum_i m_i * g_j^(2^i).
- * Decoder: linearised-polynomial interpolation (solve a 113x114 linear
- *          system over F_{2^127}), O(n^3). NOT constant time, NOT optimised.
- * KEM: m uniform, theta = SHAKE256(m), c = Enc(pk,m;theta),
- *      K = H3(m||c); decapsulation re-encrypts and aborts on mismatch.
  */
 #include <stdio.h>
 #include <stdlib.h>
