@@ -1,13 +1,6 @@
 (* ===================================================================
    CPUS -- ProVerif model                                     [FS]
    Forward secrecy test: the server's RQC secret key SK=(x,y) is leaked
-   AFTER the sessions (phase 1).
-   Assumption: ID_U is a high-entropy value known only to the user
-   and the server.
-   Model: one registered user, unboundedly many sessions, active
-   Dolev-Yao network attacker. Pseudonym rotation is not modelled
-   (it is covered by the C implementation tests).
-   Expected: secrecy of session keys HOLDS (attacker_p1 queries).
    =================================================================== *)
 free c: channel.
 
