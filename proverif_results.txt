@@ -1,9 +1,5 @@
 CPUS - ProVerif verification results
-====================================
-Date            : 2026-11-26
-Tool            : Proverif 2.00
-Models          : cpus_main.pv, cpus_fs.pv, cpus_eph.pv
-Assumption      : ID_U is a high-entropy secret known only to the user and the server
+===================================
 
 How to read the lines
   not attacker(secret...) is true    -> session key stays secret (attacker_p1 = after the leak phase)
