@@ -1,0 +1,74 @@
+== Test 0: field arithmetic and RQC-I correctness ==
+  [PASS] multiplication matches reference, commutative
+  [PASS] distributive law
+  [PASS] inverse: a * a^-1 = 1
+  [PASS] frobenius sanity
+  [PASS] a^(2^127) = a
+  [PASS] secret (x,y) has rank weight w = 7
+  [PASS] Dec(Enc(m)) = m for 10 random messages (zero failure)
+  [info] measured error rank = 55 (decoding radius delta = 55)
+  [PASS] error rank <= delta
+  [PASS] tampered ciphertext rejected by FO check
+  [PASS] decryption with wrong secret key fails
+== Test 1: normal mutual authentication ==
+  [S] user authenticated
+  [U] server authenticated
+  [PASS] handshake completes
+  [PASS] sk_U == sk_S
+  [PASS] IDS_new synchronized
+  [PASS] server retains IDS_old
+  sk:           4fd2dc17551c28a7...
+  IDS_new:      eddc133741bb86a9...
+== Test 2: second session (pseudonym rotates) ==
+  [S] user authenticated
+  [U] server authenticated
+  [PASS] handshake + key agreement
+  [PASS] pseudonym changed (unlinkable)
+  [PASS] state synchronized
+== Test 3: message 4 lost (desynchronization) ==
+  [S] user authenticated
+  [N] message 4 lost
+  [PASS] final message dropped
+  [PASS] user keeps old IDS
+  [S] user authenticated
+  [U] server authenticated
+  [PASS] retry succeeds via IDS_old
+  [PASS] re-synchronized
+== Test 4: tampered ciphertext (MITM) ==
+  [S] decapsulation failed (re-encryption check) -> abort
+  [PASS] server rejects modified c2
+  [S] decapsulation failed (re-encryption check) -> abort
+  [PASS] server rejects modified c1
+== Test 5: unknown pseudonym / DoS early rejection ==
+  [S] unknown IDS -> rejected (no decode)
+  [PASS] request rejected
+  [PASS] no decoding performed
+== Test 6: replay of old message 3 under new server nonce ==
+  [PASS] replayed (c,nonce_U,Auth_U) rejected
+== Test 7: wrong server key (server holds a different SK) ==
+  [S] decapsulation failed (re-encryption check) -> abort
+  [PASS] server without correct SK cannot complete
+  [PASS] user IDS unchanged
+== Test 8: impostor server (passes Step 1 using public data) ==
+  [PASS] impostor passes the lightweight Step-1 check (as the paper states)
+  [PASS] random Auth_S rejected at Step 4
+  [PASS] Auth_S built without m rejected at Step 4
+  [PASS] user does not commit IDS, does not accept sk
+
+RESULT: Mutual Authentication Successful, all tests passed
+Multiplier: PCLMULQDQ
+Times in milliseconds. RQC-I: n=113 m=127 k=3 w=7, |CT|(unpacked)=3616 B, packed ~ 3588 B
+
+RQC primitives
+  KeyGen (server, once)              mean     0.273  sd    0.485  min     0.171  max     2.884  (n=30)
+  Encapsulation E_enc (client)       mean     0.205  sd    0.043  min     0.165  max     0.295  (n=30)
+  Decapsulation D_dec (server)       mean     5.009  sd    0.951  min     4.094  max     7.435  (n=30)
+Symmetric
+  1 SHA-256 call (approx, ms)        mean     0.001  sd    0.001  min     0.001  max     0.005  (n=30)
+Whole protocol run (per party)
+  Client total (msg3 + finish)       mean     0.245  sd    0.028  min     0.222  max     0.352  (n=30)
+  Server total (msg2 + msg4)         mean     4.418  sd    0.309  min     4.133  max     5.490  (n=30)
+
+  Server/Client cost ratio: 18.1x
+  Note: decapsulation here includes the FO re-encryption (one extra E_enc),
+  and the decoder is an O(n^3) reference solver, so D_dec is an upper bound.
